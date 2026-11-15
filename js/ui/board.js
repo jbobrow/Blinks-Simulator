@@ -3,6 +3,7 @@
  *   press the center  -> the Blink's button (held for as long as you hold)
  *   drag the rim      -> move it; drop it on the bin to remove it
  *   right-click / R   -> rotate it 60°
+ *   B                 -> make it a Bloop (a Blink with a speaker), or a plain Blink again
  *   double-click table -> add a Blink there
  */
 
@@ -38,6 +39,8 @@ export class Board {
     this.lastTouched = null;
     this.dragging = null;
     this.bin = hooks.bin;
+    this.paused = false;        // time stands still: sound ripples stop where they are
+    this.rippleT = 0; this.lastNow = 0;
     // hooks.fixed: Blinks can be pressed but not moved, turned or added (the learn page's Goal Blink)
     new ResizeObserver(() => this.resize()).observe(canvas.parentElement);
     this.resize();
@@ -170,6 +173,11 @@ export class Board {
       } else if ((e.key === 'r' || e.key === 'R') && b && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         this.rotate(b, e.shiftKey ? -1 : 1);
+      } else if ((e.key === 'b' || e.key === 'B') && b && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        b.bloop = !b.bloop;
+        this.hooks.onBloop?.(b);
+        this.hooks.onLayout?.();
       }
     });
     window.addEventListener('keyup', e => {
@@ -243,12 +251,15 @@ export class Board {
     c.setTransform(this.DPR, 0, 0, this.DPR, 0, 0);
     c.clearRect(0, 0, this.W, this.H);
     this.drawGrid(c);
+    if (!this.paused) this.rippleT += Math.min(100, now - this.lastNow);
+    this.lastNow = now;
     const bs = this.world.blinks;
     // glow underneath
     c.globalCompositeOperation = 'lighter';
     for (const b of bs) this.drawGlow(c, b);
     c.globalCompositeOperation = 'source-over';
     for (const b of bs) this.drawBlink(c, b, now);
+    for (const b of bs) if (b.bloop && b.voice) this.drawSound(c, b);
     this.trackDatagrams(now);
     if (this.debug === 'comms') {
       for (const b of bs) if (!isQuiet(b)) this.drawComms(c, b);
@@ -339,6 +350,7 @@ export class Board {
     rhex(c, x, y, r2, rr2, a0); c.strokeStyle = 'rgb(167,167,174)'; c.lineWidth = 1.5; c.stroke();
     c.restore();
     if (pressed) { c.fillStyle = 'rgba(0,0,0,.12)'; c.fill(); }
+    if (b.bloop) this.drawGrille(c, x, y, R, a0);
 
     if (b.mode === 'crashed') {
       const p = 0.5 + 0.5 * Math.sin(now / 180);
@@ -348,6 +360,44 @@ export class Board {
     if (b === this.lastTouched && document.activeElement === this.cv) {
       c.fillStyle = '#FA4616'; c.beginPath(); c.arc(x, y + R * 0.88, 2.4, 0, TAU); c.fill();
     }
+  }
+
+  // A Bloop's speaker: seven holes at its center, turning with it
+  drawGrille(c, x, y, R, a0) {
+    const d = R * 0.1, r = Math.max(0.8, R * 0.026);
+    c.fillStyle = 'rgba(24,20,36,.5)';
+    c.beginPath();
+    c.arc(x, y, r, 0, TAU);
+    for (let i = 0; i < 6; i++) {
+      const a = a0 + Math.PI / 6 + i * Math.PI / 3, px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
+      c.moveTo(px + r, py); c.arc(px, py, r, 0, TAU);
+    }
+    c.fill();
+  }
+
+  // A playing Bloop sends out rounded hexagons: faster for higher notes, thinner for thinner
+  // waves, and broken up for noise
+  drawSound(c, b) {
+    const v = b.voice();
+    if (!v) return;
+    const [x, y] = this.pos(b), S = this.view.S, a0 = this.angle(b);
+    const period = clamp(1100 - 260 * Math.log2(v.hz / 262), 260, 1400);
+    const width = Math.max(1, S * [0.05, 0.036, 0.024, 0.036][v.wave]);
+    // tinted by its lights, so a ripple belongs to its Blink
+    let L = [0, 0, 0];
+    for (let f = 0; f < 6; f++) L = L.map((s, i) => s + colorToRGB(b.display[f])[i] / 6);
+    const tint = mix([255, 255, 255], L.map(s => s * 255 / Math.max(1, ...L)), Math.max(...L) > 30 ? 0.55 : 0).map(Math.round).join(',');
+    c.save();
+    c.lineWidth = width;
+    if (v.wave === 3) c.setLineDash([width * 1.2, width * 2.2]);
+    for (let i = 0; i < 3; i++) {
+      const k = ((this.rippleT + b.id * 131) / period + i / 3) % 1;
+      const R = S * (0.98 + 0.6 * k);
+      rhex(c, x, y, R, R * 0.17);
+      c.strokeStyle = `rgba(${tint},${0.55 * Math.pow(1 - k, 1.6)})`;
+      c.stroke();
+    }
+    c.restore();
   }
 
   // A sleeping Blink's z's: each rises from its top right corner, drifting up and to the right,

@@ -102,6 +102,19 @@ export const PRELUDE = `
 #define START_STATE_DOWNLOAD_SUCCESS    2
 #define FOREACH_FACE(x) for(uint8_t x = 0; x < FACE_COUNT ; ++ x)
 #define COUNT_OF(x) ((sizeof(x)/sizeof(x[0])))
+#define QUIET       0
+#define NOTE_C      36
+#define NOTE_D      38
+#define NOTE_E      40
+#define NOTE_F      41
+#define NOTE_G      43
+#define NOTE_A      45
+#define NOTE_B      47
+#define NOTE_HIGH_C 48
+#define WAVE_ROUND  0
+#define WAVE_REEDY  1
+#define WAVE_THIN   2
+#define WAVE_NOISE  3
 `;
 
 // Headers that are part of the Blinks platform or avr-libc. Their contents are built in.

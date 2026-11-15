@@ -86,10 +86,10 @@ export class World {
   }
 
   // ---------- layout ----------
-  addBlink(q, r, rot = 0) {
+  addBlink(q, r, rot = 0, bloop = false) {
     if (this.grid.has(key(q, r))) return null;
     const b = new Blink(this, this.nextId++);
-    b.q = q; b.r = r; b.rot = rot; b.lifted = false;
+    b.q = q; b.r = r; b.rot = rot; b.lifted = false; b.bloop = !!bloop;
     b.powerUp(0, this.program);
     this.blinks.push(b);
     this.grid.set(key(q, r), b);

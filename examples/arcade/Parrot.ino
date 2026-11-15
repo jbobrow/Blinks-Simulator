@@ -27,7 +27,7 @@ Timer phaseTimer, echoTimer;
 unsigned long phaseStart;
 
 byte getNote(byte i)          { return (seq[i >> 2] >> ((i & 3) * 2)) & 3; }
-void setNote(byte i, byte n)  { byte s = (i & 3) * 2; seq[i >> 2] = (seq[i >> 2] & ~(3 << s)) | (n << s); }
+void putNote(byte i, byte n)  { byte s = (i & 3) * 2; seq[i >> 2] = (seq[i >> 2] & ~(3 << s)) | (n << s); }
 
 word noteOn()   { int ms = 700 - len * 20; return ms < 360 ? 360 : ms; }
 #define NOTE_GAP 260
@@ -37,7 +37,7 @@ void go(byte s, word ms) { state = s; phaseStart = millis(); phaseTimer.set(ms);
 void addNoteAndShow() {
   if (len < MAX_LEN) {
     const byte pool[6] = { 0, 0, 1, 1, 2, 3 };      // long presses are slower, so rarer
-    setNote(len, pool[random(5)]);
+    putNote(len, pool[random(5)]);
     len++;
   }
   go(SHOW, len * (noteOn() + NOTE_GAP) + 250);
@@ -122,7 +122,7 @@ void loop() {
         byte ready[6], nr = 0;
         FOREACH_FACE(f) if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == 1) ready[nr++] = f;
         if (nr) {
-          if (len < MAX_LEN) { const byte pool[6] = { 0, 0, 1, 1, 2, 3 }; setNote(len, pool[random(5)]); len++; }
+          if (len < MAX_LEN) { const byte pool[6] = { 0, 0, 1, 1, 2, 3 }; putNote(len, pool[random(5)]); len++; }
           byte d[2 + MAX_LEN / 4];
           d[0] = MSG_SEQ; d[1] = len;
           byte nb = (len + 3) / 4;

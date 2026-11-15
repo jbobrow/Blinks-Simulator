@@ -108,6 +108,8 @@ export function sdkBuiltins(cfg) {
   const v = cfg.value;
   const api = { ...BUILTINS };
   delete api.isMAXblink; delete api.isNFCblink; delete api.saveGameStat; delete api.setFaceColor;
+  // no Bloops: their sound is Move38 blinklib's
+  for (const k of ['setNote', 'playNote', 'isNotePlaying', 'setWave', 'makeToneHz', 'noteUp', 'noteDown', 'noteHz', 'isBloopBlink']) delete api[k];
   api.setValueSentOnFace = b(T.void, [v, T.u8], a => `L.setValueSentOnFace(${a[0]}, ${a[1]})`);
   api.setValueSentOnAllFaces = b(T.void, [v], a => `L.setValueSentOnAllFaces(${a[0]})`);
   api.getLastValueReceivedOnFace = b(v, [T.u8], a => `L.getLastValueReceivedOnFace(${a[0]})`);

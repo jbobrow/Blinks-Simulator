@@ -85,6 +85,7 @@ function run(build) {
       errors: [],
       ram: { used: gen.ram.globals, budget: RAM_TOTAL - (ramSystem ?? RAM_SYSTEM) },
       serialInput: gen.serialInput,
+      usesSound: /\bL\.(setNote|playNote|setWave)\(/.test(gen.js),   // plays sound: needs a Bloop
       functions: gen.functions,
       globals: gen.globals,
       defines: pp.defines,

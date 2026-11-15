@@ -29,7 +29,7 @@ export function builtinTypeNames() {
     ['word', T.u16], ['uint16_t', T.u16], ['int16_t', T.i16], ['size_t', T.u16],
     ['uint32_t', T.u32], ['int32_t', T.i32], ['ulong', T.u32], ['millis_t', T.u32],
     ['uint64_t', { ...T.u32, name: 'uint64_t', wide: true }], ['int64_t', { ...T.i32, name: 'int64_t', wide: true }],
-    ['Color', T.color], ['pixelColor_t', T.color],
+    ['Color', T.color], ['pixelColor_t', T.color], ['Note', T.u16],
     ['Timer', TIMER], ['ServicePortSerial', SERIAL], ['HardwareSerial', SERIAL],
   ]);
 }

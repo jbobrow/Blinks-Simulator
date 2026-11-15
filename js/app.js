@@ -12,6 +12,7 @@ import { Console } from './ui/console.js';
 import { EXAMPLES, STARTER } from './examples.js';
 import { zip } from './zip.js';
 import { UPLOAD_BOARDS, openUploadDialog } from './ui/upload.js';
+import { Speakers } from './ui/sound.js';
 import { parseGitHub, repoFiles, sketchesIn, loadSketch as loadFromGitHub, GitHubError } from './github.js';
 
 const $ = s => document.querySelector(s);
@@ -39,6 +40,7 @@ const state = {
   bits: saved.bits === true,        // face values shown as bits (dots) instead of numbers
   drift: typeof saved.drift === 'number' && saved.drift >= DRIFT.min && saved.drift <= DRIFT.max ? saved.drift : DRIFT.typical,
   consoleOpen: saved.consoleOpen ?? true,
+  muted: saved.muted === true,      // the Bloops' speakers
   split: saved.split ?? null,
   source: saved.source ?? null,     // the example (or starter) text this sketch started from
   speed: 1,
@@ -58,8 +60,8 @@ function saveState() {
     try {
       localStorage.setItem(STORE, JSON.stringify({
         code: state.code, files: state.files, main: state.main, file: state.file, sdk: state.sdk, name: state.name, view: state.view, live: state.live, debug: state.debug, bits: state.bits, drift: state.drift, engine: state.engine, hwExplained: state.hwExplained, uploadBoard: state.uploadBoard,
-        consoleOpen: state.consoleOpen, split: state.split, source: state.source,
-        cells: world.blinks.map(b => [b.q, b.r, b.rot]),
+        consoleOpen: state.consoleOpen, split: state.split, source: state.source, muted: state.muted,
+        cells: cellsOf(world),
       }));
     } catch (e) { /* storage full or blocked: fine */ }
   }, 300);
@@ -105,11 +107,16 @@ const board = new Board($('#board'), world, {
   bin: $('#bin'),
   onInteract: () => $('#hint').style.opacity = 0,
   onLayout: refit => { updateCount(); saveState(); if (refit) board.fit(); },
+  onBloop: b => toast(b.bloop ? `Blink #${b.id} is a Bloop now: it has a speaker` : `Blink #${b.id} is a plain Blink again`),
 });
+const speakers = new Speakers();
+
+// Where the Blinks are: [q, r, rotation], with a 1 after for a Bloop (a Blink with a speaker)
+const cellsOf = w => w.blinks.map(b => (b.bloop ? [b.q, b.r, b.rot, 1] : [b.q, b.r, b.rot]));
 
 function setCells(cells) {
   world.clear();
-  for (const [q, r, rot] of cells) world.addBlink(q, r, rot || 0);
+  for (const [q, r, rot, bloop] of cells) world.addBlink(q, r, rot || 0, !!bloop);
   board.lastTouched = null;
   updateCount();
   board.fit();
@@ -238,6 +245,12 @@ function run(force) {
   state.running = key;
   world.load(r);
   board.valueBits = valueBits();
+  // sound needs a speaker: with none on the table, every Blink becomes a Bloop
+  if (r.usesSound && world.blinks.length && !world.blinks.some(b => b.bloop)) {
+    for (const b of world.blinks) b.bloop = true;
+    saveState();
+    callout('Your sketch plays sound, so these Blinks are Bloops now: Blinks with a speaker. The speaker button switches them back.', $('#soundBtn'));
+  }
   markDirty();
   showCompile(r, true);
   if (state.paused) setStatus('paused', 'Paused');
@@ -282,8 +295,13 @@ let hwWhole = false;          // the latest build only fit as one unit (build.js
 const hardwareActive = () => !!hw && world instanceof hw.HardwareWorld;
 // hardware-exact runs Move38's blinklib (js/hardware/build.js). Custom Blinklib games build
 // too, for Upload, but the debug views only know where Move38's blinklib keeps its state.
-const hardwareSupports = () => state.sdk === 'move38';
-const hardwareUnsupported = () => `Hardware-exact mode runs Move38’s blinklib for now, so this ${SDKS[state.sdk].name} sketch runs in the simulator. It can still be uploaded to a real Blink.`;
+// Bloop sound isn't in the real blinklib yet (docs/BLOOP.md)
+const SOUND_CALL = /\b(setNote|playNote|isNotePlaying|setWave|makeToneHz|noteUp|noteDown|noteHz|isBloopBlink)\s*\(/;
+const playsSound = () => (state.files ? Object.values(state.files) : [state.code]).some(t => SOUND_CALL.test(t));
+const hardwareSupports = () => state.sdk === 'move38' && !playsSound();
+const hardwareUnsupported = () => (playsSound()
+  ? 'Hardware-exact mode runs the real blinklib, which has no Bloop sound yet, so this sketch runs in the simulator.'
+  : `Hardware-exact mode runs Move38’s blinklib for now, so this ${SDKS[state.sdk].name} sketch runs in the simulator. It can still be uploaded to a real Blink.`);
 
 function loadHardware() {
   if (!hwLoading) {
@@ -327,12 +345,12 @@ async function setEngine(engine, from = null) {
     if (state.engine !== 'hardware') return;   // switched back while it loaded
   }
   if ((engine === 'hardware') === hardwareActive()) return;
-  const cells = world.blinks.map(b => [b.q, b.r, b.rot]);
+  const cells = cellsOf(world);
   world = engine === 'hardware' ? new hw.HardwareWorld(events) : new World(events);
   board.world = world;
   board.hover = board.hoverChip = board.lastTouched = null;
   world.drift = state.drift;
-  for (const [q, r, rot] of cells) world.addBlink(q, r, rot);
+  for (const [q, r, rot, bloop] of cells) world.addBlink(q, r, rot, !!bloop);
   runtimeDiags.clear();
   state.compiled = null;
   state.running = null;
@@ -623,7 +641,7 @@ function closePopovers() {
   }
 }
 document.addEventListener('pointerdown', e => {
-  if (!e.target.closest('.popover') && !e.target.closest('#examplesBtn') && !e.target.closest('#menuBtn') && !e.target.closest('#debugBtn') && !e.target.closest('#speedBtn')) closePopovers();
+  if (!e.target.closest('.popover') && !e.target.closest('#examplesBtn') && !e.target.closest('#menuBtn') && !e.target.closest('#debugBtn') && !e.target.closest('#speedBtn') && !e.target.closest('#soundBtn')) closePopovers();
 });
 
 function buildExamples() {
@@ -889,18 +907,19 @@ function openGitHub() {
   input.select();
 }
 
-// The Blinks on the table as an example's layout: [q, r] or [q, r, rotation] each, centered on 0, 0
+// The Blinks on the table as an example's layout: [q, r], [q, r, rotation] or [q, r, rotation, 1]
+// for a Bloop, each, centered on 0, 0
 function arrangementText() {
   const bs = world.blinks, n = bs.length || 1;
   const dq = Math.round(bs.reduce((s, b) => s + b.q, 0) / n), dr = Math.round(bs.reduce((s, b) => s + b.r, 0) / n);
-  const cells = bs.map(b => [b.q - dq, b.r - dr, b.rot]).sort((a, b) => a[1] - b[1] || a[0] - b[0]);
-  return `layout: [${cells.map(([q, r, rot]) => `[${q}, ${r}${rot ? ', ' + rot : ''}]`).join(', ')}]`;
+  const cells = bs.map(b => [b.q - dq, b.r - dr, b.rot, b.bloop]).sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  return `layout: [${cells.map(([q, r, rot, bloop]) => `[${q}, ${r}${rot || bloop ? ', ' + rot : ''}${bloop ? ', 1' : ''}]`).join(', ')}]`;
 }
 
 // ---------------- share links ----------------
 async function shareLink() {
   const sketch = state.files ? { f: state.files, m: state.main } : { c: state.code };
-  const payload = JSON.stringify({ n: state.name, ...sketch, s: state.sdk, b: world.blinks.map(b => [b.q, b.r, b.rot]) });
+  const payload = JSON.stringify({ n: state.name, ...sketch, s: state.sdk, b: cellsOf(world) });
   const bytes = new TextEncoder().encode(payload);
   let encoded;
   if (typeof CompressionStream !== 'undefined') {
@@ -937,7 +956,7 @@ function unb64url(s) {
 // ---------------- table controls ----------------
 $('#addBlink').addEventListener('click', () => {
   const [q, r] = nextCell(world);
-  world.addBlink(q, r, 0);
+  world.addBlink(q, r, 0, world.blinks.length && world.blinks.every(b => b.bloop));
   updateCount(); board.fit(); saveState();
 });
 $('#removeBlink').addEventListener('click', () => {
@@ -948,7 +967,9 @@ $('#removeBlink').addEventListener('click', () => {
 });
 document.querySelectorAll('#layouts [data-layout]').forEach(btn => btn.addEventListener('click', () => {
   const n = world.blinks.length;
-  setCells(LAYOUTS[btn.dataset.layout](n).map(([q, r]) => [q, r, 0]));
+  // a table of Bloops stays Bloops
+  const bloop = world.blinks.length && world.blinks.every(b => b.bloop) ? 1 : 0;
+  setCells(LAYOUTS[btn.dataset.layout](n).map(([q, r]) => [q, r, 0, bloop]));
 }));
 $('#shuffleRot').addEventListener('click', () => {
   for (const b of world.blinks) b.rot = Math.floor(Math.random() * 6);
@@ -1035,6 +1056,35 @@ $('#timePop').addEventListener('click', e => {
   closePopovers();
   setSpeed(+b.dataset.speed);
 });
+// sound: mute the Bloops, and make every Blink a Bloop or none
+function setMuted(m) {
+  state.muted = m;
+  speakers.setMuted(m);
+  $('#soundBtn').classList.toggle('muted', m);
+  for (const b of document.querySelectorAll('#soundPop [data-sound]')) b.setAttribute('aria-checked', (b.dataset.sound === 'off') === m);
+  saveState();
+}
+setMuted(state.muted);
+function markBloops() {
+  const n = world.blinks.filter(b => b.bloop).length;
+  for (const b of document.querySelectorAll('#soundPop [data-bloops]')) b.setAttribute('aria-checked', b.dataset.bloops === 'all' ? n && n === world.blinks.length : !n);
+}
+$('#soundBtn').addEventListener('click', e => {
+  const pop = $('#soundPop');
+  if (!pop.hidden) { closePopovers(); return; }
+  markBloops();
+  openPopover(pop, e.currentTarget);
+});
+$('#soundPop').addEventListener('click', e => {
+  const s = e.target.closest('[data-sound]');
+  if (s) { setMuted(s.dataset.sound === 'off'); return; }
+  const b = e.target.closest('[data-bloops]');
+  if (!b) return;
+  for (const x of world.blinks) x.bloop = b.dataset.bloops === 'all';
+  markBloops();
+  saveState();
+});
+
 // drift never goes to zero: no two real Blinks keep the same time. It snaps to the typical amount.
 const driftRange = $('#driftRange');
 driftRange.min = DRIFT.min * 100; driftRange.max = DRIFT.max * 100;
@@ -1142,12 +1192,23 @@ function updateInspector(now) {
   const mode = { run: '', sleeping: ' · going to sleep', sleep: ' · asleep', waking: ' · waking up', crashed: ' · stopped', seeding: ' · sharing', seedspin: ' · hold to share', idle: '' }[b.mode] || '';
   const rate = (world.clockRate(b) - 1) * 100;
   const clock = world.drift ? ` · clock ${rate >= 0 ? '+' : '−'}${Math.abs(rate).toFixed(1)}%` : '';
-  insp.innerHTML = `<h4>Blink #${b.id}<span>${(b.millis / 1000).toFixed(1)} s${clock}${mode}</span></h4>
-    <table><tr><th>face</th><th>sends</th><th>hears</th></tr>${rows}</table>
+  const v = b.voice ? b.voice() : null;
+  const sound = b.bloop ? `<div class="note">${v ? `♪ ${noteName(v.note)} · ${v.hz} Hz${v.wave ? ' · ' + WAVE_NAMES[v.wave] : ''}` : 'quiet'}</div>` : '';
+  insp.innerHTML = `<h4>${b.bloop ? 'Bloop' : 'Blink'} #${b.id}<span>${(b.millis / 1000).toFixed(1)} s${clock}${mode}</span></h4>
+    <table><tr><th>face</th><th>sends</th><th>hears</th></tr>${rows}</table>${sound}
     ${b.error ? `<div class="err">${b.error.message.replace(/[<>&]/g, '')}</div>` : ''}`;
   insp.hidden = false;
   placeInspector(b);
   if (fresh) inspectorIn();
+}
+// A Note as the sketch would write it: NOTE_E, a step on the scale, or a frequency
+const NOTE_NAMES = { 36: 'NOTE_C', 38: 'NOTE_D', 40: 'NOTE_E', 41: 'NOTE_F', 43: 'NOTE_G', 45: 'NOTE_A', 47: 'NOTE_B', 48: 'NOTE_HIGH_C' };
+const WAVE_NAMES = ['round', 'reedy', 'thin', 'noise'];
+function noteName(n) {
+  if (NOTE_NAMES[n]) return NOTE_NAMES[n];
+  if (n >= 64) return 'tone';
+  const k = n + 36;
+  return ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'][k % 12] + (Math.floor(k / 12) - 1);
 }
 // How many bits a face value has: six with Move38's blinklib (0 to 63), a byte (or the game's own
 // type) with Custom Blinklib
@@ -1195,13 +1256,16 @@ function updateChipTip() {
 }
 
 // ---------------- flags (paused / slowed) ----------------
-let slowFactor = 1, asleep = 0, crashed = 0, flagCheck = 0;
+let slowFactor = 1, asleep = 0, crashed = 0, flagCheck = 0, unheard = '';
 function checkModes(now) {
   if (now - flagCheck < 400) return;
   flagCheck = now;
   let s = 0, c = 0;
   for (const b of world.blinks) { if (b.mode === 'sleep') s++; else if (b.mode === 'crashed') c++; }
-  if (s !== asleep || c !== crashed) { asleep = s; crashed = c; renderFlags(); }
+  // a Bloop is playing that can't be heard: say why
+  const playing = !state.paused && world.blinks.some(b => b.voice && b.voice());
+  const u = !playing ? '' : state.muted ? 'muted' : !speakers.ready ? 'locked' : '';
+  if (s !== asleep || c !== crashed || u !== unheard) { asleep = s; crashed = c; unheard = u; renderFlags(); }
 }
 function renderFlags() {
   const f = $('#simFlags');
@@ -1214,6 +1278,8 @@ function renderFlags() {
   if (slowFactor < 0.95 && !state.paused) items.push([`Running at ${(slowFactor * sp).toFixed(1)}× — too many Blinks for this computer`, 'warn']);
   if (asleep) items.push([asleep === world.blinks.length ? 'Asleep · press a Blink to wake it' : `${asleep} asleep`, '']);
   if (crashed) items.push([`${crashed === world.blinks.length ? 'Stopped' : crashed + ' stopped'} · see the console`, 'warn']);
+  if (unheard === 'locked') items.push(['Click anywhere to hear the Bloops', '']);
+  else if (unheard === 'muted') items.push(['Sound muted', '']);
   f.innerHTML = items.map(([t, c]) => `<span class="flag ${c}">${t}</span>`).join('');
 }
 
@@ -1238,6 +1304,8 @@ function frame(now) {
     if (Math.abs(nf - slowFactor) > 0.01 || (slowFactor < 0.95) !== (nf < 0.95)) { slowFactor = nf; renderFlags(); }
     else slowFactor = nf;
   }
+  speakers.update(world, state.paused || !world.program ? 0 : state.speed * slowFactor);
+  board.paused = state.paused;
   board.draw(now);
   updateInspector(now);
   updateChipTip();
@@ -1268,6 +1336,7 @@ function showHelp() {
       <li>Right-click or press <kbd>R</kbd> to rotate a Blink. Real Blinks can be turned any way, so test your game with rotated Blinks.</li>
       <li>The debug button under the table picks what you see: <b>Tooltip</b> shows what each face sends and hears when you hover a Blink, <b>Comms</b> shows every face's value on the Blinks themselves (blue when a neighbor hears it), and each datagram as a bubble showing its bytes. It ends in a green check when the neighbor gets it, a red X when it's dropped because the last one wasn't read yet, and is grey when nobody is there. The switch at the top right of that menu shows face values as numbers or as six dots, their bits, highest first: a lit dot is a 1.</li>
       <li>Real Blinks don't keep exactly the same time: each one's clock runs a little fast or slow. The simulator does the same, so timers on different Blinks drift apart. The speed menu (under the table) has a slider to make the drift bigger or smaller.</li>
+      <li>A <b>Bloop</b> is a Blink with a speaker, with a grille at its center. Play notes with <code>setNote(NOTE_C)</code>, which holds until you change it, or <code>playNote(NOTE_E, 200)</code> for 200&nbsp;ms. A sketch that plays sound makes every Blink a Bloop if none is one. The speaker button under the table mutes the sound and switches all the Blinks, and <kbd>B</kbd> switches the one under the pointer. Your browser plays sound after your first click on the page.</li>
       <li>The full screen button at the end of the controls under the table, or <kbd>F</kbd>, hides the code and the console so the table fills the screen. Press it again, or <kbd>Esc</kbd>, to come back.</li>
     </ul>
     <h3>Sketches of several files</h3>
@@ -1321,4 +1390,4 @@ function toast(text) {
 })();
 
 // handy for poking at the simulation from the browser console
-window.playground = { get world() { return world; }, board, state, compile, compileSketch, setEngine, shareLink };
+window.playground = { get world() { return world; }, board, speakers, state, compile, compileSketch, setEngine, shareLink };

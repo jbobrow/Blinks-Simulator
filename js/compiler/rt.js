@@ -131,3 +131,30 @@ export function avrRand(stateRef) {
 }
 
 export const fround = Math.fround;
+
+// Bloop notes (docs/BLOOP.md): 0 is QUIET, 1 to 63 are half steps (the MIDI note number minus 36,
+// so 33 is A4), 64 and up a frequency in Hz. Whole-number math a Blink can do the same way.
+const STEP_RATIO = [32768, 34716, 36781, 38968, 41285, 43740, 46341, 49097, 52016, 55109, 58386, 61858];   // 2^(k/12) out of 32768
+export function noteHz(n) {
+  n &= 0xffff;
+  if (n === 0 || n >= 64) return n;
+  return Math.round(440 * Math.pow(2, (n - 33) / 12));
+}
+export function makeToneHz(hz) {
+  hz &= 0xffff;
+  return hz === 0 ? 0 : Math.max(64, hz);
+}
+export function noteUp(n, steps) {
+  n &= 0xffff; steps &= 255;
+  if (n === 0) return 0;
+  if (n < 64) return Math.min(63, n + steps);
+  const v = Math.floor(n * STEP_RATIO[steps % 12] / 32768) * Math.pow(2, Math.floor(steps / 12));
+  return Math.min(0xffff, v);
+}
+export function noteDown(n, steps) {
+  n &= 0xffff; steps &= 255;
+  if (n === 0) return 0;
+  if (n < 64) return Math.max(1, n - steps);
+  const v = Math.floor(Math.floor(n * 32768 / STEP_RATIO[steps % 12]) / Math.pow(2, Math.floor(steps / 12)));
+  return Math.max(64, v);
+}

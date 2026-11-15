@@ -56,6 +56,7 @@ export class Blink {
     this.clockSkew = Math.random() * 2 - 1;
     this.clockAcc = Math.random();
     this.passWait = Math.random() * 7.68;   // ms until its next loop pass (FRAME_MS in world.js)
+    this.bloop = false;         // a Bloop: a Blink with a speaker (docs/BLOOP.md)
     this.powerUp(0, null);
   }
 
@@ -84,6 +85,11 @@ export class Blink {
     this.warmWoken = 0;
     this.mode = 'run';          // run | seedspin | seeding | sleeping | sleep | waking | crashed | idle
     this.skipUntil = 0;
+    this.note = 0;              // the Bloop's note (0 is QUIET), its wave, and when a playNote() ends
+    this.wave = 0;
+    this.noteEnd = NEVER;
+    this.lastPlay = null;       // the last playNote(), so the speaker can sound one shorter than a frame
+    this.noteSeq = 0;
     this.serialBuf = '';
     this.serialIn = [];
     this.error = null;
@@ -430,6 +436,22 @@ export class Blink {
 
   setColor(c) { this.pixels.fill(c); }
   setColorOnFace(c, face) { if (this.checkFace(face, 'setColorOnFace')) this.pixels[face] = c; }
+
+  // Bloop sound: like the LEDs, it's a state that stays until changed
+  setNote(n) { this.note = n; this.noteEnd = NEVER; this.noteSeq++; }
+  playNote(n, ms) {
+    this.note = n;
+    this.noteEnd = (this.millis + ms) >>> 0;
+    this.lastPlay = { note: n, wave: this.wave, ms };
+    this.noteSeq++;
+  }
+  isNotePlaying() { return this.note && this.millis < this.noteEnd ? 1 : 0; }
+  setWave(w) { this.wave = w & 3; }
+  // What the speaker plays now: { note, hz, wave }, or null when it's quiet
+  voice() {
+    if (!this.bloop || this.mode !== 'run' || !this.note || this.millis >= this.noteEnd) return null;
+    return { note: this.note, hz: H.noteHz(this.note), wave: this.wave };
+  }
 
   buttonDown() { return this.snapDown ? 1 : 0; }
   flag(bit) {

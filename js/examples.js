@@ -3,7 +3,7 @@
  * note: a line under the group's heading.
  * layout: the Blinks to set up when the example opens. Either the name of a shape in LAYOUTS (js/ui/board.js),
  *   or the exact Blinks: [q, r] or [q, r, rotation] each, on the hex grid (axial coordinates, face 0 up, rotation
- *   0 to 5 clockwise). Lay them out on the table and use "Copy arrangement" in the ⋯ menu to get this text.
+ *   0 to 5 clockwise), with a 1 after the rotation for a Bloop (a Blink with a speaker, docs/BLOOP.md). Lay them out on the table and use "Copy arrangement" in the ⋯ menu to get this text.
  * about, players, time: the game's description from Move38's Blinks app, shown when hovering it.
  */
 
@@ -20,6 +20,13 @@ export const EXAMPLES = [
       { file: 'learn/07-Messages.ino', title: 'Send a message', blurb: 'Pass numbers between Blinks', layout: 'line' },
       { file: 'learn/08-Spread.ino', title: 'Spread a color', blurb: 'Send news through a whole group', layout: 'flower' },
       { file: 'learn/09-Random.ino', title: 'Random colors', blurb: 'Why randomize() matters', layout: 'trio' },
+    ],
+  },
+  {
+    group: 'Sound', note: 'For Bloops: Blinks with a speaker.', items: [
+      { file: 'sound/01-Scale.ino', title: 'Hello, Bloop', blurb: 'Click to play a scale', layout: [[0, 0, 0, 1]] },
+      { file: 'sound/02-Waves.ino', title: 'Waves', blurb: 'Hold to play, click to change the note', layout: [[0, 0, 0, 1]] },
+      { file: 'sound/03-Chord.ino', title: 'Chord', blurb: 'Touch Bloops together to play a chord', layout: [[-1, 0, 0, 1], [0, -1, 0, 1], [0, 0, 0, 1]] },
     ],
   },
   {

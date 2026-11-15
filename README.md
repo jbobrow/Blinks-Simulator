@@ -45,6 +45,8 @@ The simulator also tells you about things that would go wrong on a Blink: compil
 
 IR messages take time to arrive, about 3 ms a byte as on hardware, and datagrams a little longer to make up for the ones a real table loses. Not simulated: collisions and lost messages of real infrared, flash size limits, and multi-file sketches (paste headers into the sketch). [docs/SIMULATION.md](docs/SIMULATION.md) explains how the simulation works and lists every known difference from hardware. Hardware-exact mode closes most of those differences; [hardware/README.md](hardware/README.md) explains how it works and what it doesn't emulate yet.
 
+The playground also runs **Bloops**, a proposed Blink with a speaker: `setNote(NOTE_C)` plays a note until it's changed, as `setColor()` lights a Blink. [docs/BLOOP.md](docs/BLOOP.md) is the spec.
+
 ## Run locally
 
 It's a static site with no build step:

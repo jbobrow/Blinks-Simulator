@@ -133,10 +133,10 @@ export class HardwareWorld {
   restart() { for (const b of this.blinks) b.powerUp(this.program); }
 
   // ---------- layout ----------
-  addBlink(q, r, rot = 0) {
+  addBlink(q, r, rot = 0, bloop = false) {
     if (this.grid.has(key(q, r))) return null;
     const b = new HwBlink(this, this.nextId++);
-    b.q = q; b.r = r; b.rot = rot; b.lifted = false;
+    b.q = q; b.r = r; b.rot = rot; b.lifted = false; b.bloop = !!bloop;   // a Bloop stays one, though the real blinklib has no sound yet
     b.powerUp(this.program);
     this.blinks.push(b);
     this.grid.set(key(q, r), b);

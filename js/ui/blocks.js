@@ -25,7 +25,7 @@ const HEADER = 'Made with blocks in the Blinks Playground';
 
 // Category colors: bright, evenly spaced hues that sit well on the dark panel
 const PALETTE = {
-  events: '#E3A21F', light: '#F25A1F', button: '#E0559B', neighbors: '#1EAE9B', time: '#8A63E6',
+  events: '#E3A21F', light: '#F25A1F', sound: '#C44FD1', button: '#E0559B', neighbors: '#1EAE9B', time: '#8A63E6',
   control: '#3C89EA', math: '#3BAA63', logic: '#6E9F2E', bits: '#5E77D8', variables: '#E2524C', lists: '#2FA8D8', constants: '#B07A57', functions: '#B65BD0',
   code: '#5D5670',
 };
@@ -37,6 +37,11 @@ const COLORS = [
 ];
 const COLOR_NAMES = new Set(COLORS.map(c => c[0]));
 const COLOR_HEX = Object.fromEntries(COLORS);
+// A Bloop's named notes and waves (docs/BLOOP.md), as the note and wave blocks' choices
+const NOTES = [['C', 'NOTE_C'], ['D', 'NOTE_D'], ['E', 'NOTE_E'], ['F', 'NOTE_F'], ['G', 'NOTE_G'], ['A', 'NOTE_A'], ['B', 'NOTE_B'], ['high C', 'NOTE_HIGH_C'], ['quiet', 'QUIET']];
+const WAVES = [['round', 'WAVE_ROUND'], ['reedy', 'WAVE_REEDY'], ['thin', 'WAVE_THIN'], ['noise', 'WAVE_NOISE']];
+const NOTE_NAMES = new Set(NOTES.map(n => n[1]));
+const WAVE_NAMES = new Set(WAVES.map(w => w[1]));
 // blinklib's named colors in 5-bit channels, so the color picker's sliders can start there
 const COLOR_RGB5 = {
   RED: [31, 0, 0], ORANGE: [31, 15, 0], YELLOW: [31, 31, 0], GREEN: [0, 31, 0], CYAN: [0, 31, 31],
@@ -167,6 +172,22 @@ const CALL_BLOCKS = [
     'The color at a lower brightness: 255 is full, 0 is off.'],
   ['bk_lighten', 'light', 'lighten %1 by %2', 'lighten', [['COLOR', C, 'BLUE'], ['AMOUNT', N, 128]], C,
     'The color mixed toward white: 0 keeps it, 255 is white.'],
+  ['bk_set_note', 'sound', 'play note %1', 'setNote', [['NOTE', N, 'NOTE_C']], null,
+    'Play a note on a Bloop (a Blink with a speaker) and keep playing it until you play another. Play quiet to stop.'],
+  ['bk_play_note', 'sound', 'play note %1 for %2 ms', 'playNote', [['NOTE', N, 'NOTE_E'], ['MS', N, 200]], null,
+    'Play a note for some milliseconds (1000 is a second), then stop. The rest of your code keeps running meanwhile.'],
+  ['bk_set_wave', 'sound', 'sound like %1', 'setWave', [['WAVE', N, 'WAVE_REEDY']], null,
+    'How the notes sound from now on: round (where it starts), reedy, thin, or noise for drums.'],
+  ['bk_note_up', 'sound', '%1 up %2 half steps', 'noteUp', [['NOTE', N, 'NOTE_C'], ['STEPS', N, 12]], N,
+    'A higher note: 1 half step is the next piano key, 12 is an octave.'],
+  ['bk_note_down', 'sound', '%1 down %2 half steps', 'noteDown', [['NOTE', N, 'NOTE_C'], ['STEPS', N, 12]], N,
+    'A lower note: 1 half step is the next piano key down, 12 is an octave.'],
+  ['bk_tone_hz', 'sound', 'tone %1 Hz', 'makeToneHz', [['HZ', N, 440]], N,
+    'A note at any frequency: how many times a second the speaker shakes (64 and up). 440 is the A that orchestras tune to.'],
+  ['bk_note_playing', 'sound', 'playing a note?', 'isNotePlaying', [], B,
+    'True while a note is playing. It turns false when a "play note for" runs out.'],
+  ['bk_is_bloop', 'sound', 'I have a speaker?', 'isBloopBlink', [], B,
+    'True on a Bloop, a Blink with a speaker. On a Blink without one, the sound blocks do nothing.'],
   ['bk_click_count', 'button', 'click count', 'buttonClickCount', [], N,
     'How many times the button was clicked in a row in the last multi-click.'],
   ['bk_send_all', 'neighbors', 'send %1 on all faces', 'setValueSentOnAllFaces', [['VALUE', N, 1]], null,
@@ -212,7 +233,11 @@ const SHADOW_DEFAULTS = { bk_change: 1, bk_timer_set: 1000, bk_timer_add: 1000, 
 
 const numBlock = n => ({ type: 'math_number', fields: { NUM: n } });
 const colorBlock = name => ({ type: 'bk_color', fields: { COLOR: name } });
+const noteBlock = name => ({ type: 'bk_note', fields: { NOTE: name } });
+const waveBlock = name => ({ type: 'bk_wave', fields: { WAVE: name } });
 function shadowFor(check, def) {
+  if (NOTE_NAMES.has(def)) return noteBlock(def);
+  if (WAVE_NAMES.has(def)) return waveBlock(def);
   if (check === N && def != null) return numBlock(def);
   if (check === C && def != null) return colorBlock(def);
   return null;
@@ -1166,6 +1191,12 @@ function defineBlocks(Blockly) {
       output: C, style: 'bk_light', tooltip: 'A color: pick a named one (OFF is no light) or mix your own from red, green and blue.' },
     { type: 'bk_random_color', message0: 'random color', output: C, style: 'bk_light',
       tooltip: 'A bright color with a random hue.' },
+
+    // Sound
+    { type: 'bk_note', message0: '%1', args0: [{ type: 'field_dropdown', name: 'NOTE', options: NOTES }],
+      output: N, style: 'bk_sound', tooltip: 'A note from C to high C, or quiet. A note is a number, so it can go in a variable, a list, or be sent to a neighbor.' },
+    { type: 'bk_wave', message0: '%1', args0: [{ type: 'field_dropdown', name: 'WAVE', options: WAVES }],
+      output: N, style: 'bk_sound', tooltip: 'How a note sounds: round, reedy, thin, or noise.' },
 
     // Button
     { type: 'bk_button', message0: 'button %1 ?', args0: [{ type: 'field_dropdown', name: 'EVENT', options: BUTTON_STATES }],
@@ -2779,6 +2810,8 @@ function makeGenerator(Blockly) {
     return mix ? [`makeColorRGB(${mix.join(', ')})`, ORDER.POSTFIX] : [value, ORDER.ATOMIC];
   };
   F.bk_random_color = () => ['makeColorHSB(random(255), 255, 255)', ORDER.POSTFIX];
+  F.bk_note = block => [block.getFieldValue('NOTE'), ORDER.ATOMIC];
+  F.bk_wave = block => [block.getFieldValue('WAVE'), ORDER.ATOMIC];
   F.bk_button = block => [block.getFieldValue('EVENT') + '()', ORDER.POSTFIX];
   F.bk_button_clear = block => block.getFieldValue('EVENT') + '();\n';
   F.bk_neighbor = block => ['!isValueReceivedOnFaceExpired(' + v(block, 'FACE', ORDER.COMMA, '0') + ')', ORDER.UNARY];
@@ -3618,6 +3651,7 @@ class Importer {
     if (toks.length === 1 && num(toks[0]) !== null) value = numBlock(num(toks[0]));
     else if (toks.length === 2 && toks[0].v === '-' && num(toks[1]) !== null) value = numBlock(-num(toks[1]));
     else if (toks.length === 1 && COLOR_NAMES.has(toks[0].v)) value = colorBlock(toks[0].v);
+    else if (toks.length === 1 && NOTE_NAMES.has(toks[0].v)) value = noteBlock(toks[0].v);
     if (!value || Math.abs(value.fields ? Number(value.fields.NUM ?? 0) : 0) > 2147483647) return null;
     const json = { type: 'bk_define', fields: { NAME: n.v }, inputs: { VALUE: { shadow: value.type === 'math_number' ? value : numBlock(0), ...(value.type === 'math_number' ? {} : { block: value }) } } };
     this.anchors.push({ line: hash.line, target: json });
@@ -4787,6 +4821,8 @@ class Importer {
   // An expression that is exactly one macro use: named colors, FACE_COUNT, min/max/abs/constrain
   macroExpr(name, node, ctx) {
     if (COLOR_NAMES.has(name)) return { json: colorBlock(name), out: C };
+    if (NOTE_NAMES.has(name)) return { json: noteBlock(name), out: N };
+    if (WAVE_NAMES.has(name)) return { json: waveBlock(name), out: N };
     if (name === 'FACE_COUNT') return { json: numBlock(6), out: N };
     if (/^B[01]{1,8}$/.test(name)) return { json: { type: 'bk_bits', fields: { BITS: parseInt(name.slice(1), 2) } }, out: N };
     if (this.userDefines.has(name)) return { json: { type: 'bk_define_value', fields: { NAME: name } }, out: null };
@@ -4902,6 +4938,11 @@ function toolbox() {
         call('bk_set_color'), call('bk_set_face_color'),
         block('bk_color', { fields: { COLOR: 'ORANGE' } }), block('bk_random_color'),
         call('bk_color_rgb'), call('bk_color_hsb'), call('bk_dim'), call('bk_lighten'),
+      ]),
+      cat('Sound', 'sound', [
+        call('bk_set_note'), call('bk_play_note'), block('bk_note', { fields: { NOTE: 'NOTE_G' } }),
+        call('bk_set_wave'), call('bk_note_up'), call('bk_note_down'), call('bk_tone_hz'),
+        call('bk_note_playing'), call('bk_is_bloop'),
       ]),
       cat('Button', 'button', [
         block('bk_button'), block('bk_button', { fields: { EVENT: 'buttonDown' } }), call('bk_click_count'),

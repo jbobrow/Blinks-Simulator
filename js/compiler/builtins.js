@@ -24,6 +24,17 @@ export const BUILTINS = {
   dim: b(T.color, [T.color, T.u8], a => `H.dim(${a})`, { pure: true }),
   lighten: b(T.color, [T.color, T.u8], a => `H.lighten(${a})`, { pure: true }),
 
+  // Sound (a Bloop: a Blink with a speaker, see docs/BLOOP.md)
+  setNote: b(T.void, [T.u16], a => `L.setNote(${a[0]})`),
+  playNote: b(T.void, [T.u16, T.u16], a => `L.playNote(${a[0]}, ${a[1]})`),
+  isNotePlaying: b(T.bool, [], () => `L.isNotePlaying()`),
+  setWave: b(T.void, [T.u8], a => `L.setWave(${a[0]})`),
+  makeToneHz: b(T.u16, [T.u16], a => `H.makeToneHz(${a[0]})`, { pure: true }),
+  noteUp: b(T.u16, [T.u16, T.u8], a => `H.noteUp(${a})`, { pure: true }),
+  noteDown: b(T.u16, [T.u16, T.u8], a => `H.noteDown(${a})`, { pure: true }),
+  noteHz: b(T.u16, [T.u16], a => `H.noteHz(${a[0]})`, { pure: true }),
+  isBloopBlink: b(T.u8, [], () => `(L.bloop ? 1 : 0)`),
+
   // Button
   buttonDown: b(T.bool, [], () => `L.buttonDown()`),
   buttonPressed: b(T.bool, [], () => `L.flag(1)`),
@@ -115,7 +126,7 @@ export const NOT_ON_BLINKS = {
   digitalRead: 'Blinks don\'t expose pins. Use buttonPressed() and friends to read the button.',
   analogRead: 'Blinks don\'t have analog inputs.',
   analogWrite: 'Blinks don\'t expose pins. Use setColor() with dim() for brightness.',
-  tone: 'Blinks don\'t have a speaker.',
+  tone: 'Blinks don\'t have tone(). On a Bloop (a Blink with a speaker), use setNote(NOTE_C) to play a note until you change it, or playNote(NOTE_C, 200) to play one for 200 ms.',
   micros: 'Blinks only have millis().',
   randomSeed: 'Blinks use randomize() to seed the random number generator.',
   setFaceColor_: '',
