@@ -106,6 +106,8 @@ let world = new World(events);
 const board = new Board($('#board'), world, {
   bin: $('#bin'),
   rotateBtn: $('#rotateBtn'),
+  // with no Blink selected, the rotate button turns every Blink a random way, like real Blinks on a table
+  onRotateAll: () => { for (const b of world.blinks) b.rot = Math.floor(Math.random() * 6); saveState(); },
   onInteract: () => $('#hint').style.opacity = 0,
   onLayout: refit => { updateCount(); saveState(); if (refit) board.fit(); },
   onBloop: b => toast(b.bloop ? `Blink #${b.id} is a Bloop now: it has a speaker` : `Blink #${b.id} is a plain Blink again`),
