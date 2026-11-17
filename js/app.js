@@ -973,10 +973,6 @@ document.querySelectorAll('#layouts [data-layout]').forEach(btn => btn.addEventL
   const bloop = world.blinks.length && world.blinks.every(b => b.bloop) ? 1 : 0;
   setCells(LAYOUTS[btn.dataset.layout](n).map(([q, r]) => [q, r, 0, bloop]));
 }));
-$('#shuffleRot').addEventListener('click', () => {
-  for (const b of world.blinks) b.rot = Math.floor(Math.random() * 6);
-  saveState();
-});
 // debug view: none, a tooltip on hover, or every face's sent value drawn on the Blinks
 function setDebug(mode) {
   state.debug = mode;

@@ -4,6 +4,7 @@
  *   drag the rim      -> move it; drop it on the bin to remove it
  *   right-click / R / → -> rotate it 60° clockwise (with Shift or ⌥, or ←: counterclockwise)
  *   hooks.rotateBtn    -> a button that turns the selected Blink, and flips to counterclockwise while ⌥ is held
+ *   press the table    -> let go of the selected Blink
  *   B                 -> make it a Bloop (a Blink with a speaker), or a plain Blink again
  *   double-click table -> add a Blink there
  */
@@ -110,7 +111,7 @@ export class Board {
       if (e.button === 2) return;
       const [x, y] = this.ptr(e);
       const h = this.hit(x, y);
-      if (!h) return;
+      if (!h) { this.lastTouched = null; return; }
       e.preventDefault();
       cv.focus({ preventScroll: true });
       this.lastTouched = h.b;
@@ -210,19 +211,24 @@ export class Board {
   // A button that turns the selected Blink clockwise, or counterclockwise while ⌥ (Alt) is held,
   // its arrow flipping to match. It keeps the table's focus, so the Blink stays selected.
   bindRotateBtn(btn) {
-    const tip = ccw => `Rotate the selected Blink ${ccw ? 'counterclockwise (⌥R or ←)' : 'clockwise (R or →) · hold ⌥ to turn it the other way'}`;
-    const flip = ccw => {
-      if (btn.classList.contains('ccw') === ccw && btn.title) return;
+    let alt = false;
+    this.syncRotateBtn = () => {
+      const one = !!this.selected(), ccw = one && alt;
+      const key = one + ',' + ccw;
+      if (btn.dataset.mode === key) return;
+      btn.dataset.mode = key;
       btn.classList.toggle('ccw', ccw);
-      btn.title = tip(ccw);
+      btn.disabled = !one;
+      btn.title = !one ? 'Select a Blink to rotate it'
+        : ccw ? 'Rotate the selected Blink counterclockwise (⌥R or ←)' : 'Rotate the selected Blink clockwise (R or →) · hold ⌥ to turn it the other way';
       btn.setAttribute('aria-label', ccw ? 'Rotate counterclockwise' : 'Rotate clockwise');
     };
-    flip(false);
-    window.addEventListener('keydown', e => { if (e.key === 'Alt') flip(true); });
-    window.addEventListener('keyup', e => { if (e.key === 'Alt') flip(false); });
-    window.addEventListener('blur', () => flip(false));
+    const setAlt = a => { alt = a; this.syncRotateBtn(); };
+    window.addEventListener('keydown', e => { if (e.key === 'Alt') setAlt(true); });
+    window.addEventListener('keyup', e => { if (e.key === 'Alt') setAlt(false); });
+    window.addEventListener('blur', () => setAlt(false));
     // ⌥ may have gone down while the window was elsewhere: the pointer knows
-    btn.addEventListener('pointermove', e => flip(e.altKey));
+    btn.addEventListener('pointermove', e => { if (e.altKey !== alt) setAlt(e.altKey); });
     for (const ev of ['pointerdown', 'mousedown']) btn.addEventListener(ev, e => e.preventDefault());   // don't take focus from the table
     btn.addEventListener('click', e => {
       const b = this.selected();
@@ -231,6 +237,7 @@ export class Board {
       this.cv.focus({ preventScroll: true });
     });
     this.rotateBtn = btn;
+    this.syncRotateBtn();
   }
 
   startDrag(pr, x, y) {
@@ -282,7 +289,7 @@ export class Board {
 
   // ---------- drawing ----------
   draw(now) {
-    if (this.rotateBtn) { const off = !this.selected(); if (this.rotateBtn.disabled !== off) this.rotateBtn.disabled = off; }
+    this.syncRotateBtn?.();
     const v = this.view, t = this.target;
     const k = 0.2;
     v.S += (t.S - v.S) * k; v.OX += (t.OX - v.OX) * k; v.OY += (t.OY - v.OY) * k;
