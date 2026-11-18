@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 610" width="840" height="610" font-family="Figtree, -apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+<title>Blink Bloop wiring: a passive piezo across the service port T and R pins of an ATmega328PB Blink</title>
+<rect width="840" height="610" rx="16" fill="#FBFAF7"/>
+<text x="32" y="44" font-size="20" font-weight="700" fill="#1E1A26">Blink Bloop wiring</text>
+<text x="32" y="68" font-size="13.5" fill="#6B6478">A passive piezo across the service port’s T and R. Nothing goes to GND or VCC. ATmega328PB Blinks only.</text>
+<polygon points="278.0,225.0 224.0,318.5 116.0,318.5 62.0,225.0 116.0,131.5 224.0,131.5" fill="#E9E8EE" stroke="#E9E8EE" stroke-width="26" stroke-linejoin="round"/>
+<polygon points="264.0,225.0 217.0,306.4 123.0,306.4 76.0,225.0 123.0,143.6 217.0,143.6" fill="#F6F6F9" stroke="#C9C8D2" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="130" y="195" text-anchor="middle" font-size="16" font-weight="700" fill="#1E1A26">Blink</text>
+<text x="130" y="213" text-anchor="middle" font-size="12" fill="#6B6478">ATmega328PB</text>
+<rect x="186" y="183" width="76" height="118" rx="10" fill="#FFFFFF" stroke="#C9C8D2" stroke-width="1.5"/>
+<text x="224" y="203" text-anchor="middle" font-size="11" font-weight="600" fill="#6B6478">service port</text>
+<circle cx="244" cy="235" r="7.5" fill="#E8C66A" stroke="#B8923A" stroke-width="1.5"/>
+<text x="212" y="240" text-anchor="middle" font-size="15" font-weight="700" fill="#E8501C">R</text>
+<circle cx="244" cy="275" r="7.5" fill="#E8C66A" stroke="#B8923A" stroke-width="1.5"/>
+<text x="212" y="280" text-anchor="middle" font-size="15" font-weight="700" fill="#3B6FE0">T</text>
+<path d="M252,235 H470" stroke="#E8501C" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<polyline points="470.0,235.0 482.5,226.0 495.0,244.0 507.5,226.0 520.0,244.0 532.5,226.0 545.0,235.0" stroke="#1E1A26" stroke-width="2.4" fill="none" stroke-linejoin="round"/>
+<path d="M545,235 H620 Q636,235 636,234.0 T650,233.0" stroke="#E8501C" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M252,275 H620 Q636,275 636,276.0 T650,277.0" stroke="#3B6FE0" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="507.5" y="193" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1E1A26">about 100 Ω, optional</text>
+<text x="507.5" y="209" text-anchor="middle" font-size="11.5" fill="#6B6478">softens the current spikes on the coin cell</text>
+<text x="264" y="224" font-size="12" fill="#1E1A26"><tspan font-weight="700" fill="#E8501C">PD0</tspan> · OC3A, timer 3</text>
+<text x="264" y="299" font-size="12" fill="#1E1A26"><tspan font-weight="700" fill="#3B6FE0">PD1</tspan> · OC4A, timer 4 (inverted)</text>
+<circle cx="705" cy="255.0" r="64" fill="#D8B45A" stroke="#A9842E" stroke-width="2"/>
+<circle cx="705" cy="255.0" r="39.7" fill="#EDEBE6" stroke="#BDB8AE" stroke-width="1.5"/>
+<circle cx="650" cy="233.0" r="4" fill="#1E1A26"/>
+<circle cx="650" cy="277.0" r="4" fill="#1E1A26"/>
+<text x="705" y="345.0" text-anchor="middle" font-size="14" font-weight="700" fill="#1E1A26">passive piezo</text>
+<text x="705" y="363.0" text-anchor="middle" font-size="12" fill="#6B6478">no polarity: either way round</text>
+<line x1="32" y1="400" x2="808" y2="400" stroke="#D9D4CC"/>
+<text x="32" y="426" font-size="13" font-weight="700" fill="#1E1A26">What the pins do</text>
+<text x="32" y="462.0" font-size="12" font-weight="600" fill="#E8501C">PD0 (R)</text>
+<path d="M160,448 H194.0 V468 H228.0 V448 H262.0 V468 H296.0 V448 H330.0 V468 H364.0 V448 H398.0 V468 H432.0 V448 H466.0 V468 H500.0" stroke="#E8501C" stroke-width="2.2" fill="none"/>
+<text x="32" y="504.0" font-size="12" font-weight="600" fill="#3B6FE0">PD1 (T)</text>
+<path d="M160,510 H194.0 V490 H228.0 V510 H262.0 V490 H296.0 V510 H330.0 V490 H364.0 V510 H398.0 V490 H432.0 V510 H466.0 V490 H500.0" stroke="#3B6FE0" stroke-width="2.2" fill="none"/>
+<text x="32" y="552" font-size="12" font-weight="600" fill="#1E1A26">across the piezo</text>
+<line x1="160" y1="548" x2="500" y2="548" stroke="#D9D4CC" stroke-dasharray="3 3"/>
+<path d="M160,534 H194.0 V562 H228.0 V534 H262.0 V562 H296.0 V534 H330.0 V562 H364.0 V534 H398.0 V562 H432.0 V534 H466.0 V562 H500.0" stroke="#1E1A26" stroke-width="2.2" fill="none"/>
+<text x="510" y="538" font-size="11.5" fill="#6B6478">+3 V</text>
+<text x="510" y="566" font-size="11.5" fill="#6B6478">−3 V</text>
+<text x="590" y="446" font-size="12" fill="#6B6478">Each pin swings 0 to 3 V, opposite</text>
+<text x="590" y="462" font-size="12" fill="#6B6478">the other, so the piezo sees 6 V</text>
+<text x="590" y="478" font-size="12" fill="#6B6478">peak to peak: louder than one pin.</text>
+<text x="590" y="494" font-size="12" fill="#6B6478"></text>
+<text x="590" y="510" font-size="12" fill="#6B6478">The pulse width is the wave:</text>
+<text x="590" y="526" font-size="12" fill="#6B6478">round 50%, reedy 25%, thin 12.5%.</text>
+<text x="590" y="542" font-size="12" fill="#6B6478"></text>
+<text x="590" y="558" font-size="12" fill="#6B6478">A Bloop can’t use Serial:</text>
+<text x="590" y="574" font-size="12" fill="#6B6478">Serial needs these two pins.</text>
+</svg>

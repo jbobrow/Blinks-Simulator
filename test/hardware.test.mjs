@@ -9,6 +9,7 @@ import { buildSketch, withBios, BOARDS } from '../js/hardware/build.js';
 import { inoToCpp, parseDiagnostics } from '../js/hardware/sketch.js';
 import { readElf, blinklibSymbols, memoryUse } from '../js/hardware/elf.js';
 import { HardwareWorld } from '../js/hardware/world.js';
+import { AvrBlink } from '../js/hardware/blink-avr.js';
 
 const dir = new URL('../js/hardware/toolchain/', import.meta.url);
 const NAMES = { cc1plus: 'cc1plus', as: 'avr-as', ld: 'avr-ld', objcopy: 'avr-objcopy' };
@@ -94,4 +95,56 @@ test('a flower of hardware Blinks hears its neighbors, and loses one that moves 
   for (let i = 0; i < 30; i++) w.advance(16);
   assert.ok([...middle.display].every((c) => c === 0), 'alone, the middle Blink hears nobody');
   for (const p of petals) assert.equal([...p.display].filter(green).length, 2, `#${p.id} lost the middle`);
+});
+
+// A Blink Bloop's piezo, across PD0 and PD1: each change of the pair, as [ns, PD0 high, PD1 high]
+function piezo(b) {
+  const D = b.ports.D, edges = [];
+  D.addListener(() => {
+    const v = [D.pinState(0) === 1, D.pinState(1) === 1];
+    const last = edges.at(-1);
+    if (!last || last[1] !== v[0] || last[2] !== v[1]) edges.push([b.ns, ...v]);
+  });
+  // what it played from one time to another: its frequency, and how much of the time PD0 and PD1 were opposite
+  return (fromMs, toMs) => {
+    b.runUntil(toMs * 1e6);
+    const w = edges.filter(([ns]) => ns >= fromMs * 1e6 && ns < toMs * 1e6);
+    const rises = w.filter((e, i) => i > 0 && e[1] && !w[i - 1][1]);
+    let apart = 0, total = 0;
+    for (let i = 0; i + 1 < w.length; i++) { const d = w[i + 1][0] - w[i][0]; total += d; if (w[i][1] !== w[i][2]) apart += d; }
+    return { hz: rises.length > 1 ? Math.round((rises.length - 1) * 1e9 / (rises.at(-1)[0] - rises[0][0])) : 0, apart: total ? apart / total : 0 };
+  };
+}
+
+test('a Blink Bloop plays its note on the service port pins, one against the other', async () => {
+  const r = await build(`void setup() { setNote(NOTE_A); }
+void loop() { if (buttonSingleClicked()) playNote(noteUp(NOTE_C, 12), 200); }
+`, 'blink328bloop');
+  assert.ok(r.ok, r.stderr);
+  const b = new AvrBlink({ chip: 'atmega328pb', flash: r.program.flash });
+  const heard = piezo(b);
+  const a = heard(600, 800);
+  assert.equal(a.hz, 880);
+  // the timers start an instruction apart, so the pins flip a cycle or two apart
+  assert.ok(a.apart > 0.999, `opposite ${a.apart} of the time`);
+  b.runUntil(900e6); b.setButton(true); b.runUntil(960e6); b.setButton(false);
+  assert.equal(heard(1300, 1400).hz, 1047, 'the click plays high C');
+  assert.equal(heard(1600, 1800).hz, 0, 'and stops after 200 ms');
+});
+
+test('a Blink Bloop is quiet asleep, and plays its note again when it wakes', async () => {
+  const r = await build('void setup() { setWave(WAVE_REEDY); setNote(NOTE_G); }\nvoid loop() {}\n', 'blink328bloop');
+  const b = new AvrBlink({ chip: 'atmega328pb', flash: r.program.flash });
+  const heard = piezo(b);
+  assert.equal(heard(600, 800).hz, 784);
+  b.runUntil(1000e6); b.setButton(true); b.runUntil(8000e6); b.setButton(false);   // held past 6 s: warm sleep
+  assert.equal(heard(9000, 10000).hz, 0);
+  b.runUntil(10500e6); b.setButton(true); b.runUntil(10560e6); b.setButton(false);
+  assert.equal(heard(11500, 11700).hz, 784);
+});
+
+test('sound needs the Blink Bloop board', async () => {
+  const r = await build('void setup() { setNote(NOTE_C); }\nvoid loop() {}\n', 'blink328');
+  assert.equal(r.ok, false);
+  assert.match(r.diagnostics[0].message, /'NOTE_C' was not declared/);
 });

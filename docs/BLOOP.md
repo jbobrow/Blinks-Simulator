@@ -2,7 +2,7 @@
 
 A **Bloop** is a Blink with a small piezo speaker. It's a Blink in every other way: the same six faces, button, IR and blinklib. A sketch plays sound through a few new functions that work like the ones for light.
 
-This document is the proposed API, and how the playground simulates it. The playground runs it today. Real Bloops don't exist yet, so the hardware notes at the end are proposals, and the questions there need answers before the API is final.
+This document is the proposed API, how the playground simulates it, and how to make one from a Blink. The playground runs it, and uploads it to a Blink with a piezo as a beta board. The questions at the end need answers before the API is final.
 
 ## Design
 
@@ -65,7 +65,7 @@ A `Note` is either a step on the scale or a frequency:
 | `WAVE_ROUND` | 0 | A square wave (50% pulse): full and plain. The start. |
 | `WAVE_REEDY` | 1 | A 25% pulse: brighter and buzzier, like a reed. |
 | `WAVE_THIN` | 2 | A 12.5% pulse: thin and nasal, and a little quieter. |
-| `WAVE_NOISE` | 3 | Noise: a hiss whose pitch follows the note. For drums, wind and surf. |
+| `WAVE_NOISE` | 3 | Noise: a hiss whose pitch follows the note. For drums, wind and surf. On a real Bloop, a rattle (see below). |
 
 ### When a Bloop is quiet
 
@@ -116,18 +116,27 @@ The Sound drawer has **play note** (holds), **play note for ms**, **sound like**
 - **Time.** Sound follows the simulator's time. Pausing stops it, and at 2× a 200 ms note lasts 100 ms. Pitch doesn't change with speed.
 - **Clock drift.** A Bloop makes its pitch from its own clock, so a Bloop whose clock runs 1% fast plays 1% sharp. The simulator does the same, which is why a chord of Bloops shimmers a little. The clock drift slider makes it more or less.
 - **Short notes.** The sound is updated once per screen frame (about 16 ms). A `playNote()` shorter than a frame still sounds, for its own length.
-- **Not yet.** Hardware-exact mode and Upload to a Blink use the real blinklib, which has no sound yet. A sketch that plays sound runs in the simulator.
+- **Real Bloops.** Upload to a Blink builds it for a Blink Bloop. Hardware-exact mode doesn't play sound yet, so a sketch that plays sound runs in the simulator.
 
-## Hardware notes (proposals)
+## On a real Blink (beta)
 
-- **Board.** A Bloop would be a board variant like Blink MAX and Blink NFC: an ATmega328PB, with blinklib's sound functions built in for it and doing nothing on other boards.
-- **Driving the piezo.** The 328PB has two 16-bit timers (3 and 4) that the 168PB lacks. One could make the tone in hardware, leaving the LED and IR timing alone. At 8 MHz with a prescaler of 8, a timer counts at 1 MHz. `TOP = 1000000 / hz − 1` covers 64 Hz (15624) to 20 kHz (49). Pitch gets coarser at the top: near 2.5 kHz, one count is about 0.25%, a 25th of a half step. The compare register sets the pulse width. Driving the piezo from two pins in opposite phase would make it louder.
-- **Noise.** A timer interrupt at a multiple of the note's frequency would clock a linear feedback shift register (LFSR) and set the pin from its low bit, the way 8-bit consoles make noise.
-- **`playNote()`.** blinklib's run() would check the end time once a pass, against millis(). A pass is at most a few ms long, so notes end on time to the ear.
+A Bloop is a Blink with an ATmega328PB and a passive piezo soldered across its service port's **T** and **R**. Upload to a Blink, under Beta boards, has a **Blink Bloop** board for it. It refuses a 168PB, and it's picked for you when the sketch plays sound.
+
+![A passive piezo between the service port's R (PD0) and T (PD1), with an optional 100 Ω resistor in series, and the two pins' opposite square waves](bloop-wiring.svg)
+
+- **Wiring.** Just the piezo, either way round, from R to T. Nothing goes to GND or VCC. A resistor of about 100 Ω in series is optional: it softens the current spikes the piezo draws from the coin cell at each edge.
+- **How it plays.** On the 328PB, R is PD0, which is also OC3A, and T is PD1, which is also OC4A. The BIOS uses timers 0, 1 and 2 for the LEDs and IR, and leaves timers 3 and 4 alone. Both run the same fast PWM, timer 4's inverted, so the piezo sees the battery's voltage one way and then the other: about 6 V peak to peak, twice what one pin gives. The pulse width is the wave. The timers count the 8 MHz clock from 123 Hz up, and an eighth of it below.
+- **No interrupts.** The BIOS moves the interrupt vectors into its own section, and its table stops at vector 16 (timer 0 overflow). A game can't have an interrupt, so the timers make the sound with nothing running between passes of `loop()`. `playNote()` ends at the first pass after its time is up, a few milliseconds at most.
+- **Noise.** An LFSR needs an interrupt, so on hardware `WAVE_NOISE` is a rattle instead of a hiss: each pass of `loop()` picks a new pitch between half and one and a half times the note's. The simulator plays a hiss. A BIOS that passed a timer 3 or 4 interrupt to the game would make real noise possible.
+- **Quiet.** The Bloop's blinklib goes quiet before warm sleep, game sharing and a stack overflow, plays the note again after waking, and lets go of the timers before `setup()`, because a game downloaded over IR starts without a reset.
+- **Serial.** `Serial.begin()` takes the same two pins, so a Bloop that uses Serial stays quiet.
+- **The 168PB can't.** Its PD0 and PD1 have no timer outputs, the BIOS uses all three of its timers, and a game can't have an interrupt. A Bloop needs a 328PB.
+- **blinklib.** The Bloop's blinklib is Move38's (SDK 1.3.0), with [bloop.cpp](../hardware/bloop/bloop.cpp) added, [bloop.h](../hardware/bloop/bloop.h) included from blinklib.h, and calls into it at six points in blinklib.cpp's run loop and warm sleep ([hardware/bloop/core.mjs](../hardware/bloop/core.mjs) makes the changes when the toolchain is built). The BIOS is a Blink328's. On other boards a sketch that plays sound doesn't build: their blinklib has no sound.
+- **Not yet.** Hardware-exact mode runs Blinks without a speaker, so a sketch that plays sound runs in the simulator there. The emulated 328PB has timers 3 and 4, so it could play a Bloop's real output next.
 
 ### Open questions
 
-1. Which pins and timer does the piezo use, and does the BIOS need to know about it? For example, to keep it quiet during game sharing, or to stop it when sleeping.
+1. Should the BIOS pass a timer 3 or 4 interrupt to the game? It would give real noise, and fades.
 2. What's the piezo's real range? Measure loudness from 200 Hz to 8 kHz on the actual part, then choose the named octave and the lowest Hz `makeToneHz()` allows.
 3. How much battery does a held note use? If it's a lot, a Bloop could go quiet after some time without a button press, as it goes to sleep after 10 minutes.
 4. Is there a quiet mode for a classroom, a volume step, or a switch?

@@ -10,6 +10,7 @@
 //   /libs/avr5/            libgcc.a, libc.a, libm.a, lib<mcu>.a
 //   /core/                 blinklib (cores/blinklib from the Move38 SDK)
 //   /core-bga/             Custom Blinklib's blinklib (cores/blinklib from blinklib:avr 1.4.3)
+//   /core-bloop/           the Blink Bloop's blinklib: Move38's with sound (hardware/bloop)
 //   /obj/<mcu>/            blinklib compiled ahead of time (compileCore); Custom Blinklib's in /obj/bga…
 //   /ldscripts/            the SDKs' link scripts
 //   /bios/                 the BlinkBIOS images
@@ -23,9 +24,13 @@ export const BOARDS = {
   blink328:    { mcu: 'atmega328pb', board: 'AVR_BLINK_328', linkscript: 'avr5-atmega328.xn', builtin: 0x3900, flashBytes: 0x8000, maxGame: 5888, ram: 2048, bios: 'BlinkBIOS-328PB.hex' },
   blink328max: { mcu: 'atmega328pb', board: 'AVR_BLINK_328', linkscript: 'avr5-atmega328.xn', builtin: 0x3900, flashBytes: 0x8000, maxGame: 7936, ram: 2048, bios: 'BlinkBIOS-328PB-MAX.hex' },
   blink328nfc: { mcu: 'atmega328pb', board: 'AVR_BLINK_328', linkscript: 'avr5-atmega328.xn', builtin: 0x3900, flashBytes: 0x8000, maxGame: 7936, ram: 2048, bios: 'BlinkBIOS-328PB-MAX-NFC.hex' },
+  // A Blink328 with a piezo across the service port's serial pins, and a blinklib with sound
+  // (hardware/bloop). The BIOS is a Blink328's.
+  blink328bloop: { mcu: 'atmega328pb', board: 'AVR_BLINK_BLOOP', linkscript: 'avr5-atmega328.xn', builtin: 0x3900, flashBytes: 0x8000, maxGame: 5888, ram: 2048, bios: 'BlinkBIOS-328PB.hex', core: '/core-bloop', coreName: 'bloop' },
 };
 
 export const CORE_SOURCES = ['blinklib.cpp', 'Timer.cpp', 'Serial.cpp', 'Print.cpp', 'main.cpp', 'sp.cpp', 'gamestat.cpp'];
+const BLOOP_SOURCES = [...CORE_SOURCES, 'bloop.cpp'];
 
 // The blinklibs a sketch can be built on (the ids are compiler/sdk.js's):
 //   move38  Move38's, from the Arduino IDE's move38:avr 1.3.0, for every board above
@@ -50,7 +55,10 @@ export function target(boardName = 'blink', lib = 'move38') {
   const L = BLINKLIBS[lib];
   if (!L || !BOARDS[boardName]) throw new Error(`no board ${boardName} for ${lib}`);
   if (L.boards && !L.boards[boardName]) throw new Error(`${lib} doesn't build for ${boardName}`);
-  return { ...BOARDS[boardName], ...L.boards?.[boardName], lib, ...L };
+  const B = BOARDS[boardName];
+  // a board with its own blinklib (the Bloop) builds that, from Move38's
+  const own = B.core ? { core: B.core, sources: BLOOP_SOURCES } : {};
+  return { ...B, ...L.boards?.[boardName], lib, ...L, ...own };
 }
 
 const defines = (b) => [
@@ -73,12 +81,12 @@ const AS_FLAGS = ['-mmcu=avr5', '-mno-skip-bug', '-mlink-relax'];
 // Where blinklib's objects go when it is compiled, per chip. Custom Blinklib built with a
 // game's config goes in a folder of its own, named after the config's text.
 export const coreDir = (boardName, lib = 'move38', config = null) => {
-  const { mcu } = BOARDS[boardName];
-  if (lib === 'move38') return `/obj/${mcu}`;
+  const { mcu, coreName } = BOARDS[boardName];
+  if (lib === 'move38') return coreName ? `/obj/${mcu}-${coreName}` : `/obj/${mcu}`;
   return config ? `/obj/${lib}-${fnv(config)}/${mcu}` : `/obj/${lib}/${mcu}`;
 };
 export const coreObjects = (boardName, lib = 'move38', config = null) =>
-  ['startup', ...BLINKLIBS[lib].sources.map((f) => f.replace(/\.cpp$/, ''))].map((n) => `${coreDir(boardName, lib, config)}/${n}.o`);
+  ['startup', ...target(boardName, lib).sources.map((f) => f.replace(/\.cpp$/, ''))].map((n) => `${coreDir(boardName, lib, config)}/${n}.o`);
 
 const fnv = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0; return h.toString(16).padStart(8, '0'); };
 

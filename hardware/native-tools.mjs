@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, readFileSync, readd
 import { execFileSync } from 'node:child_process';
 import { tmpdir, homedir } from 'node:os';
 import { join, dirname } from 'node:path';
+import { bloopCore } from './bloop/core.mjs';
 
 const ARDUINO = join(homedir(), 'Library/Arduino15/packages');
 export const GCC = join(ARDUINO, 'arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7');
@@ -19,6 +20,10 @@ export function nativeTools() {
   link(join(GCC, 'avr/include'), 'sysroot/avr/include');
   link(join(SDK, 'cores/blinklib'), 'core');
   link(join(BGA_SDK, 'cores/blinklib'), 'core-bga');
+  // the Bloop's blinklib: Move38's files, with the ones bloopCore() changes or adds
+  const bloop = bloopCore(join(SDK, 'cores/blinklib'));
+  for (const name of readdirSync(join(SDK, 'cores/blinklib'))) if (!bloop.has(name)) link(join(SDK, 'cores/blinklib', name), `core-bloop/${name}`);
+  for (const [name, text] of bloop) writeFileSync(join(root, 'core-bloop', name), text);
   for (const name of readdirSync(join(SDK, 'linkscripts'))) link(join(SDK, 'linkscripts', name), `ldscripts/${name}`);
   link(join(BGA_SDK, 'linkscripts/avr5.xn'), 'ldscripts/bga-avr5.xn');
   link(join(GCC, 'lib/gcc/avr/7.3.0/avr5/libgcc.a'), 'libs/avr5/libgcc.a');

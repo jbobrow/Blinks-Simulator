@@ -22,7 +22,7 @@ const gz = (data) => gzipSync(data, { level: 9 });
 const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
 
 const tools = await wasmToolsFromSources();
-for (const board of ['blink', 'blink328']) await compileCore(tools, board);
+for (const board of ['blink', 'blink328', 'blink328bloop']) await compileCore(tools, board);
 // without a game's config; one with a config builds its own
 for (const board of ['blink', 'blink328']) await compileCore(tools, board, { lib: 'bga' });
 // The libraries are mostly debug info, which linking doesn't need (libgcc.a: 5.8 MB -> 1 MB)
@@ -70,6 +70,7 @@ Downloaded only when the playground's hardware-exact mode is turned on. Rebuild 
   - blinklib, its link scripts and the BlinkBIOS images from the Move38 SDK 1.3.0
     ([bigjosh/Move38-Arduino-Platform](https://github.com/bigjosh/Move38-Arduino-Platform); see LICENSE-Move38-SDK.txt), with
     blinklib compiled for the ATmega168PB and ATmega328PB
+  - the Blink Bloop's blinklib: Move38's with sound added (hardware/bloop), compiled for the ATmega328PB
   - Custom Blinklib 1.4.3's blinklib, link script and BlinkBIOS image
     ([brunoga/blinklib](https://github.com/brunoga/blinklib); see LICENSE-Custom-Blinklib.txt), with blinklib
     compiled for the ATmega168PB and ATmega328PB

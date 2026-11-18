@@ -13,7 +13,11 @@ export const UPLOAD_BOARDS = {
   standard: { name: 'Blink', note: 'ATmega168PB or ATmega328PB, found when you upload' },
   blink328max: { name: 'Blink MAX', note: 'ATmega328PB, with room for a 7936-byte game and isMAXblink()', beta: true },
   blink328nfc: { name: 'Blink NFC', note: 'ATmega328PB with an NFC chip, isNFCblink() and saveGameStat()', beta: true },
+  blink328bloop: { name: 'Blink Bloop', note: 'ATmega328PB with a piezo across the service port’s T and R, for setNote() and playNote()', beta: true },
 };
+
+// A sketch that plays sound only builds for a Bloop: the other boards' blinklib has no speaker
+const SOUND_NAME = /'(setNote|playNote|isNotePlaying|setWave|makeToneHz|noteUp|noteDown|noteHz|isBloopBlink|Note|QUIET|NOTE_[A-Z_]+|WAVE_[A-Z]+)' was not declared/;
 
 /*
  * Open the dialog `d` (a <dialog class="upload">).
@@ -36,7 +40,7 @@ export async function openUploadDialog(d, { sketch, sdk, name, board, setBoard, 
     <button type="button" class="btn icon ghost close" aria-label="Close"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5 5 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg></button>
     <h2>Upload to a Blink</h2>
     <p class="up-hint">Plug in your Dev Blink via USB and choose Upload. Your sketch is built with avr-gcc and written along with the BlinkBIOS, just like in the Arduino IDE.</p>
-    ${bga ? `<p class="up-hint up-lib">Built on ${SDKS.bga.name}, with the BIOS its board package uses for the Blink’s chip. Blink MAX and NFC need Move38’s blinklib.</p>` : ''}
+    ${bga ? `<p class="up-hint up-lib">Built on ${SDKS.bga.name}, with the BIOS its board package uses for the Blink’s chip. Blink MAX, NFC and Bloop need Move38’s blinklib.</p>` : ''}
     ${os === 'windows' ? `<details class="up-setup"><summary>Setting up Windows (once)</summary>
       <p>Chrome can only use a programmer that has Windows’ WinUSB driver:</p>
       <ol><li>Download <a href="https://zadig.akeo.ie" target="_blank" rel="noopener">Zadig</a> and run it.</li>
@@ -108,11 +112,15 @@ export async function openUploadDialog(d, { sketch, sdk, name, board, setBoard, 
       const tc = await toolchain(p => { say(`Loading avr-gcc… ${Math.round(p * 100)}%`); progress(p); });
       let built = null;
       const r = await uploadFlash(tiny, async chip => {
+        if (chip === 'atmega168pb' && choice === 'blink328bloop') throw new UploadError('This Blink has an ATmega168PB, which can’t drive a speaker from its service port. A Bloop needs a Blink with an ATmega328PB.');
         if (chip === 'atmega168pb' && choice !== 'standard') throw new UploadError(`This Blink has an ATmega168PB, so it isn’t a ${UPLOAD_BOARDS[choice].name}. Choose Blink and upload again.`);
         built = choice !== 'standard' ? choice : chip === 'atmega168pb' ? 'blink' : 'blink328';
         const b = await tc.build(code, built, sdk);
         const err = (b.diagnostics || []).find(x => x.severity === 'err');
         const at = err && [several && err.file, err.line && `line ${err.line}`].filter(Boolean).join(' ');
+        if (!b.ok && choice !== 'blink328bloop' && err && SOUND_NAME.test(err.message)) {
+          throw new UploadError('This sketch plays sound, so it needs a Blink Bloop: choose it under Beta boards, on a Blink with an ATmega328PB and a piezo.');
+        }
         if (!b.ok) throw new UploadError(`avr-gcc couldn’t build this sketch${err ? `: ${at ? `${at}: ` : ''}${err.message}` : '.'}`);
         if (b.flashUsed > b.flashBudget) throw new UploadError(`The game is ${b.flashUsed} bytes, but a ${UPLOAD_BOARDS[choice].name} has room for ${b.flashBudget}.`);
         return b.flash;

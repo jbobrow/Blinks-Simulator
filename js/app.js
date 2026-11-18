@@ -303,7 +303,7 @@ const SOUND_CALL = /\b(setNote|playNote|isNotePlaying|setWave|makeToneHz|noteUp|
 const playsSound = () => (state.files ? Object.values(state.files) : [state.code]).some(t => SOUND_CALL.test(t));
 const hardwareSupports = () => state.sdk === 'move38' && !playsSound();
 const hardwareUnsupported = () => (playsSound()
-  ? 'Hardware-exact mode runs the real blinklib, which has no Bloop sound yet, so this sketch runs in the simulator.'
+  ? 'Hardware-exact mode runs Blinks without a speaker, so this sketch runs in the simulator. To hear it on hardware, upload it to a Blink Bloop.'
   : `Hardware-exact mode runs Move38’s blinklib for now, so this ${SDKS[state.sdk].name} sketch runs in the simulator. It can still be uploaded to a real Blink.`);
 
 function loadHardware() {
@@ -417,7 +417,7 @@ function openUpload() {
     sketch: () => (state.files ? { files: { ...state.files }, main: state.main } : state.code),
     sdk: state.sdk,
     name: title,
-    board: state.uploadBoard,
+    board: playsSound() ? 'blink328bloop' : state.uploadBoard,   // sound needs a speaker
     setBoard: b => { state.uploadBoard = b; saveState(); },
     toolchain: async onProgress => {
       if (!hw) {

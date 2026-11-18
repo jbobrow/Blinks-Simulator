@@ -34,7 +34,7 @@ The tests that need nothing installed are in [test/hardware.test.mjs](../test/ha
 **Upload to a Blink…** in the menu writes the sketch to a real Blink through a USBtinyISP programmer, over WebUSB ([js/hardware/usbtiny.js](../js/hardware/usbtiny.js)). It does what the Arduino IDE's Upload does for a Blink, `avrdude -B 5 -cusbtiny` with the game and the BIOS:
 
 1. Enter programming mode at a 200 kHz SPI clock, and read the signature to tell a 168PB from a 328PB.
-2. Build the sketch for that chip, whether it's one file or a folder of them. **Blink** picks `blink` or `blink328`. **Blink MAX** and **Blink NFC**, under "Beta boards", build for `blink328max` and `blink328nfc`, and refuse a 168PB. A Custom Blinklib sketch builds for the 168PB or the 328PB (not MAX or NFC), with the BIOS its board package uses for that chip.
+2. Build the sketch for that chip, whether it's one file or a folder of them. **Blink** picks `blink` or `blink328`. **Blink MAX**, **Blink NFC** and **Blink Bloop**, under "Beta boards", build for `blink328max`, `blink328nfc` and `blink328bloop`, and refuse a 168PB. A Custom Blinklib sketch builds for the 168PB or the 328PB (not MAX or NFC), with the BIOS its board package uses for that chip.
 3. Check the fuses against boards.txt. If they differ (a fresh chip doesn't jump to the BIOS), it asks before setting them, as Burn Bootloader does.
 4. Erase the chip, write each 128-byte page that holds anything, and read the pages back to check them.
 
@@ -56,6 +56,7 @@ Blinks have shipped on two chips. The newer BIOS in SDK 1.3.0 ([bigjosh/Move38-A
 | `blink328` | ATmega328PB, 32 KB flash, 2 KB RAM | 5888 B | 0x7000 (hfuse 0xD8) | |
 | `blink328max` | ATmega328PB | 7936 B | 0x7000 | `isMAXblink()` |
 | `blink328nfc` | ATmega328PB | 7936 B | 0x7000 | `isNFCblink()`, `saveGameStat()` |
+| `blink328bloop` | ATmega328PB | 5888 B | 0x7000 | Not Move38's: a Blink328 with a piezo on the service port, and blinklib with sound ([docs/BLOOP.md](../docs/BLOOP.md)) |
 
 The 1.3.0 SDK also adds `getBlinkbiosVersion()` and `gamestat.h`. Games call these features through the BIOS's version vector, so emulating the real BIOS gets them without any extra work. A 168PB and a 328PB on the same table talk to each other normally.
 

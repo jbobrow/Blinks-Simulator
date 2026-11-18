@@ -37,6 +37,18 @@ const IVSEL = 2;
 // Opcodes handled here instead of by avr8js
 const OP_SPM = 0x95e8, OP_SPM_INC = 0x95f8, OP_SLEEP = 0x9588;
 
+// The 328PB's two more 16-bit timers, laid out like timer 1. The BIOS doesn't use them; a Blink
+// Bloop's piezo does, from OC3A (PD0) and OC4A (PD1), the service port's serial pins.
+const timer3Config = {
+  ...timer1Config, captureInterrupt: 0x40, compAInterrupt: 0x42, compBInterrupt: 0x44, ovfInterrupt: 0x46,
+  TIFR: 0x38, OCRA: 0x98, OCRB: 0x9a, ICR: 0x96, TCNT: 0x94, TCCRA: 0x90, TCCRB: 0x91, TCCRC: 0x92, TIMSK: 0x71,
+  compPortA: portDConfig.PORT, compPinA: 0, compPortB: portDConfig.PORT, compPinB: 2, externalClockPort: 0, externalClockPin: 0,
+};
+const timer4Config = {
+  ...timer3Config, captureInterrupt: 0x52, compAInterrupt: 0x54, compBInterrupt: 0x56, ovfInterrupt: 0x58,
+  TIFR: 0x39, OCRA: 0xa8, OCRB: 0xaa, ICR: 0xa6, TCNT: 0xa4, TCCRA: 0xa0, TCCRB: 0xa1, TCCRC: 0xa2, TIMSK: 0x72, compPinA: 1,
+};
+
 // Pins (BlinkBIOS hardware.h)
 const ANODES = [['B', 6], ['E', 0], ['B', 7], ['E', 1], ['D', 4], ['D', 2]];
 const RED = 6, GREEN = 5, BLUE = 3;   // PORTD sinks, driven low (by timer PWM) to light
@@ -162,7 +174,8 @@ export class AvrBlink {
     };
 
     const Timer = lazyTimers ? LazyTimer : AVRTimer;
-    this.timers = [timer0Config, timer1Config, timer2Config].map((t) => new Timer(cpu, t));
+    const timers = [timer0Config, timer1Config, timer2Config, ...(chip === 'atmega328pb' ? [timer3Config, timer4Config] : [])];
+    this.timers = timers.map((t) => new Timer(cpu, t));
     this.ports = {
       B: new AVRIOPort(cpu, portBConfig),
       C: new AVRIOPort(cpu, portCConfig),

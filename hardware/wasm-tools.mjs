@@ -12,6 +12,7 @@ import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { GCC, SDK, BGA_SDK } from './native-tools.mjs';
 import { createTools, decodePack } from '../js/hardware/tools.js';
+import { bloopCore } from './bloop/core.mjs';
 
 export const PKG = new URL('node_modules/@horang-corp/avr-gcc-wasm/', import.meta.url).pathname;
 export const TOOLCHAIN = new URL('../js/hardware/toolchain/', import.meta.url).pathname;
@@ -36,6 +37,9 @@ export async function wasmToolsFromSources() {
   readTree(join(GCC, 'lib/gcc/avr/7.3.0/include-fixed'), files, '/sysroot/gcc/include-fixed', (p) => p.endsWith('.h'));
   readTree(join(PKG, 'assets/fs/sysroot/avr/include'), files, '/sysroot/avr/include', keepHeader);
   readTree(join(SDK, 'cores/blinklib'), files, '/core');
+  // the Bloop's blinklib: Move38's, with sound
+  readTree(join(SDK, 'cores/blinklib'), files, '/core-bloop');
+  for (const [name, text] of bloopCore(join(SDK, 'cores/blinklib'))) files.set(`/core-bloop/${name}`, new TextEncoder().encode(text));
   readTree(join(SDK, 'linkscripts'), files, '/ldscripts', (p) => p.endsWith('.xn'));
   for (const lib of ['libgcc.a', 'libc.a', 'libm.a']) files.set(`/libs/avr5/${lib}`, readFileSync(join(PKG, 'assets/libs', lib)));
   for (const lib of ['libatmega168pb.a', 'libatmega328pb.a']) files.set(`/libs/avr5/${lib}`, readFileSync(join(GCC, 'avr/lib/avr5', lib)));
